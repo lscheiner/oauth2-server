@@ -123,4 +123,10 @@ public class OauthServerConfig {
 				.build();
 	}
 
+		@Bean
+	public ProviderSettings providerSettings() {
+	    return ProviderSettings.builder()
+	      .issuer("http://localhost:9090")
+	      .build();
+	}
 }
