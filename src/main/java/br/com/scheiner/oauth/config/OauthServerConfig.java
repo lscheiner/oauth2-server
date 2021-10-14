@@ -1,3 +1,4 @@
+
 package br.com.scheiner.oauth.config;
 
 import java.security.KeyPair;
@@ -5,6 +6,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.context.annotation.Bean;
@@ -18,6 +20,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -29,17 +32,22 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.config.TokenSettings;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 
+import br.com.scheiner.oauth.utils.PemUtils;
+
 @Configuration
 @Import(OAuth2AuthorizationServerConfiguration.class)
-public class OauthServerConfig {
+@EnableWebSecurity
+public class OauthServerConfig{
 
 	@Bean
 	@Order(Ordered.HIGHEST_PRECEDENCE)
@@ -52,13 +60,14 @@ public class OauthServerConfig {
 	public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
 
 		RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-				.clientId("huongdanjava1")
-				.clientSecret("123")
+				.clientId("teste")
+				.clientSecret("teste")
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 				.authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
 				.tokenSettings(tokenSettings())
 				.scope(OidcScopes.OPENID)
-				.scope("articles.read")
+				.scope("usuarios.read")
 				.build();
 		
 		JdbcRegisteredClientRepository registeredClientRepository = new JdbcRegisteredClientRepository(jdbcTemplate);
@@ -86,9 +95,21 @@ public class OauthServerConfig {
 
 	@Bean
 	public JWKSource<SecurityContext> jwkSource() {
-		RSAKey rsaKey = generateRsa();
-		JWKSet jwkSet = new JWKSet(rsaKey);
-		return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
+		JWKSet jwkSet = new JWKSet(List.of(generateRsa()));
+		return new ImmutableJWKSet<>(jwkSet);
+	}
+	
+	@SuppressWarnings("unused")
+	private static RSAKey generateRsaFromFile() {
+		try {
+			RSAPublicKey publicKey = (RSAPublicKey) PemUtils.readPublicKeyFromFile("D:\\publickey.crt", "RSA");
+			RSAPrivateKey privateKey = (RSAPrivateKey) PemUtils.readPrivateKeyFromFile("D:\\pkcs8.key", "RSA");
+			return new RSAKey.Builder(publicKey).privateKey(privateKey).keyID("2ee4924d-362c-42e2-9f2b-fa6d40d64cd5").build();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+
 	}
 
 	private static RSAKey generateRsa() {
@@ -122,5 +143,37 @@ public class OauthServerConfig {
 				.addScript("org/springframework/security/oauth2/server/authorization/client/oauth2-registered-client-schema.sql")
 				.build();
 	}
+	
+	@Bean
+	public ProviderSettings providerSettings() {
+	    return ProviderSettings.builder()
+	      .issuer("http://localhost:9090")
+	      .build();
+	}
+	
+	 
+	    protected void configure(HttpSecurity http) throws Exception {
+	        http.cors();
+	        
+	        http.csrf().disable();
 
+	    }
+	    
+
+
+	
+	/*
+	 * 
+	 * Gerando a chave 
+	 * 
+	 * openssl genrsa -out keypair.pem 2048
+	 * 
+	 * openssl rsa -in keypair.pem -pubout -out publickey.crt
+	 *  
+	 * openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in keypair.pem -out pkcs8.key
+	 *
+	 * https://accounts.google.com/.well-known/openid-configuration
+	 * 
+	 */
+	
 }
