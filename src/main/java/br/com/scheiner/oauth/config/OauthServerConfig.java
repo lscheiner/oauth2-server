@@ -151,17 +151,6 @@ public class OauthServerConfig{
 	      .build();
 	}
 	
-	 
-	    protected void configure(HttpSecurity http) throws Exception {
-	        http.cors();
-	        
-	        http.csrf().disable();
-
-	    }
-	    
-
-
-	
 	/*
 	 * 
 	 * Gerando a chave 
@@ -176,4 +165,5 @@ public class OauthServerConfig{
 	 * 
 	 */
 	
+
 }
